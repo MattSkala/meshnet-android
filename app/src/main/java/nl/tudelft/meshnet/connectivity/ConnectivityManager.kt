@@ -7,26 +7,24 @@ import androidx.lifecycle.MutableLiveData
 import androidx.preference.PreferenceManager
 import com.google.android.gms.nearby.Nearby
 import com.google.android.gms.nearby.connection.*
+import java.util.*
 import kotlin.random.Random
 
 class ConnectivityManager(
     private val context: Context
 ) {
-    val advertisingStatus = MutableLiveData<ConnectivityStatus>()
-    val discoveryStatus = MutableLiveData<ConnectivityStatus>()
+    val advertisingStatus = MutableLiveData<ConnectivityStatus>(ConnectivityStatus.INACTIVE)
+    val discoveryStatus = MutableLiveData<ConnectivityStatus>(ConnectivityStatus.INACTIVE)
 
     private val _endpoints = mutableListOf<Endpoint>()
-    val endpoints = MutableLiveData<List<Endpoint>>()
+    val endpoints = MutableLiveData<List<Endpoint>>(_endpoints)
+
+    private val _messages = mutableListOf<Message>()
+    val messages = MutableLiveData<List<Message>>(_messages)
 
     private val username by lazy {
         PreferenceManager.getDefaultSharedPreferences(context)
             .getString("username", "guest" + Random.nextInt(1000))!!
-    }
-
-    init {
-        advertisingStatus.value = ConnectivityStatus.INACTIVE
-        discoveryStatus.value = ConnectivityStatus.INACTIVE
-        endpoints.value = _endpoints
     }
 
     private val connectionInfos = mutableMapOf<String, ConnectionInfo>()
@@ -56,6 +54,12 @@ class ConnectivityManager(
             if (payload.type == Payload.Type.BYTES) {
                 val message = payload.asBytes()?.toString(Charsets.UTF_8)
                 Log.d(TAG, "onPayloadReceived: $message")
+
+                if (message != null) {
+                    val name = findEndpoint(endpointId)?.endpointName ?: endpointId
+                    _messages.add(Message(message, Date(), name))
+                    messages.value = _messages
+                }
             }
         }
 
@@ -82,11 +86,6 @@ class ConnectivityManager(
                 ConnectionsStatusCodes.STATUS_OK -> {
                     // We're connected! Can now start sending and receiving data.
                     updateEndpointState(endpointId, EndpointState.CONNECTED)
-
-                    /*
-                    Nearby.getConnectionsClient(context).sendPayload(endpointId,
-                        Payload.fromBytes("Hello, $endpointId! This is ${getUserNickname()}.".toByteArray()))
-                     */
                 }
                 ConnectionsStatusCodes.STATUS_CONNECTION_REJECTED -> {
                     // The connection was rejected by one or both sides.
@@ -202,9 +201,31 @@ class ConnectivityManager(
         updateEndpointState(endpointId, EndpointState.DISCOVERED)
     }
 
+    /**
+     * Broadcasts a message to all connected endpoints.
+     */
+    fun sendMessage(message: String) {
+        _messages.add(Message(message, Date(), username))
+        messages.value = _messages
+
+        for (endpoint in _endpoints) {
+            if (endpoint.state == EndpointState.CONNECTED) {
+                sendMessage(endpoint, message)
+            }
+        }
+    }
+
+    fun sendMessage(endpoint: Endpoint, message: String) {
+        Nearby.getConnectionsClient(context).sendPayload(
+            endpoint.endpointId,
+            Payload.fromBytes(message.toByteArray())
+        )
+    }
+
     private fun findEndpoint(endpointId: String): Endpoint? {
         return _endpoints.find { it.endpointId == endpointId }
     }
+
     private fun addEndpoint(endpoint: Endpoint) {
         val existing = findEndpoint(endpoint.endpointId)
         if (existing != null) {
@@ -272,5 +293,11 @@ class ConnectivityManager(
         val endpointId: String,
         val endpointName: String,
         var state: EndpointState
+    )
+
+    data class Message(
+        val message: String,
+        val timestamp: Date,
+        val sender: String
     )
 }
