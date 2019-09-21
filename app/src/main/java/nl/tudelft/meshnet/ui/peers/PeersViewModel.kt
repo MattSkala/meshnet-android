@@ -4,10 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.map
 import androidx.preference.PreferenceManager
-import nl.tudelft.meshnet.connectivity.BluetoothConnectivityManager
-import nl.tudelft.meshnet.connectivity.ConnectivityManager
-import nl.tudelft.meshnet.connectivity.ConnectivityManagerFactory
-import nl.tudelft.meshnet.connectivity.NearbyConnectivityManager
+import nl.tudelft.meshnet.connectivity.*
 import kotlin.random.Random
 
 class PeersViewModel(
@@ -21,7 +18,11 @@ class PeersViewModel(
     val discoveryStatus = connectivityManager.discoveryStatus
 
     val endpoints = connectivityManager.endpoints.map { endpoints ->
-        endpoints.map { PeerItem(it) }
+        endpoints
+            .sortedWith(compareBy (
+                { it.state != EndpointState.CONNECTED },
+                { it.state != EndpointState.CONNECTING }
+            )).map { PeerItem(it) }
     }
 
     fun toggleAdvertising() {
@@ -32,11 +33,11 @@ class PeersViewModel(
         connectivityManager.toggleDiscovery()
     }
 
-    fun connect(endpoint: NearbyConnectivityManager.Endpoint) {
+    fun connect(endpoint: Endpoint) {
         connectivityManager.requestConnection(endpoint.endpointId)
     }
 
-    fun disconnect(endpoint: NearbyConnectivityManager.Endpoint) {
+    fun disconnect(endpoint: Endpoint) {
         connectivityManager.disconnectFromEndpoint(endpoint.endpointId)
     }
 

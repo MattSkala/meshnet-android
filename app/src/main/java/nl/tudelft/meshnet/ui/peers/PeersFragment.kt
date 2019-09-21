@@ -16,6 +16,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.mattskala.itemadapter.ItemAdapter
 import kotlinx.android.synthetic.main.fragment_peers.*
 import nl.tudelft.meshnet.R
+import nl.tudelft.meshnet.connectivity.ConnectivityStatus
 import nl.tudelft.meshnet.connectivity.NearbyConnectivityManager
 
 class PeersFragment : Fragment() {
@@ -47,7 +48,7 @@ class PeersFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         btnAdvertising.setOnClickListener {
-            if (viewModel.isBluetooth()) {
+            if (viewModel.isBluetooth() && viewModel.advertisingStatus.value == ConnectivityStatus.INACTIVE) {
                 val discoverableIntent: Intent =
                     Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE).apply {
                         putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 300)
@@ -70,9 +71,9 @@ class PeersFragment : Fragment() {
         viewModel.advertisingStatus.observe(this, Observer {
             if (it != null) {
                 btnAdvertising.setText(when (it) {
-                    NearbyConnectivityManager.ConnectivityStatus.INACTIVE -> R.string.start_advertising
-                    NearbyConnectivityManager.ConnectivityStatus.PENDING -> R.string.starting
-                    NearbyConnectivityManager.ConnectivityStatus.ACTIVE -> R.string.stop_advertising
+                    ConnectivityStatus.INACTIVE -> R.string.start_advertising
+                    ConnectivityStatus.PENDING -> R.string.starting
+                    ConnectivityStatus.ACTIVE -> R.string.stop_advertising
                 })
             }
         })
@@ -80,9 +81,9 @@ class PeersFragment : Fragment() {
         viewModel.discoveryStatus.observe(this, Observer {
             if (it != null) {
                 btnDiscovery.setText(when (it) {
-                    NearbyConnectivityManager.ConnectivityStatus.INACTIVE -> R.string.start_discovery
-                    NearbyConnectivityManager.ConnectivityStatus.PENDING -> R.string.starting
-                    NearbyConnectivityManager.ConnectivityStatus.ACTIVE -> R.string.stop_discovery
+                    ConnectivityStatus.INACTIVE -> R.string.start_discovery
+                    ConnectivityStatus.PENDING -> R.string.starting
+                    ConnectivityStatus.ACTIVE -> R.string.stop_discovery
                 })
             }
         })

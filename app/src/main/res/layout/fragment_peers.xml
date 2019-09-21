@@ -10,19 +10,21 @@
         android:id="@+id/connectivityContainer"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
+        android:orientation="horizontal"
         app:layout_constraintTop_toTopOf="parent">
 
         <Button
             android:id="@+id/btnAdvertising"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_weight="1"
             android:text="@string/start_advertising" />
 
         <Button
             android:id="@+id/btnDiscovery"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_weight="1"
             android:text="@string/start_discovery" />
     </LinearLayout>
 

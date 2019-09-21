@@ -193,28 +193,4 @@ class NearbyConnectivityManager(
             return i2
         }
     }
-
-    enum class ConnectivityStatus {
-        INACTIVE,
-        PENDING,
-        ACTIVE
-    }
-
-    enum class EndpointState {
-        DISCOVERED,
-        CONNECTING,
-        CONNECTED
-    }
-
-    data class Endpoint(
-        val endpointId: String,
-        val endpointName: String?,
-        var state: EndpointState
-    )
-
-    data class Message(
-        val message: String,
-        val timestamp: Date,
-        val sender: String
-    )
 }

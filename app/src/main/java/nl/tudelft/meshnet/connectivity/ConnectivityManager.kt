@@ -4,8 +4,6 @@ import android.content.Context
 import android.util.Log
 import androidx.lifecycle.MutableLiveData
 import androidx.preference.PreferenceManager
-import com.google.android.gms.nearby.Nearby
-import com.google.android.gms.nearby.connection.Payload
 import java.util.*
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.random.Random
@@ -18,16 +16,14 @@ abstract class ConnectivityManager(
             .getString("username", "guest" + Random.nextInt(1000))!!
     }
 
-    val advertisingStatus = MutableLiveData<NearbyConnectivityManager.ConnectivityStatus>(
-        NearbyConnectivityManager.ConnectivityStatus.INACTIVE)
-    val discoveryStatus = MutableLiveData<NearbyConnectivityManager.ConnectivityStatus>(
-        NearbyConnectivityManager.ConnectivityStatus.INACTIVE)
+    val advertisingStatus = MutableLiveData<ConnectivityStatus>(ConnectivityStatus.INACTIVE)
+    val discoveryStatus = MutableLiveData<ConnectivityStatus>(ConnectivityStatus.INACTIVE)
 
-    private val _endpoints = CopyOnWriteArrayList<NearbyConnectivityManager.Endpoint>()
-    val endpoints = MutableLiveData<List<NearbyConnectivityManager.Endpoint>>(_endpoints)
+    private val _endpoints = CopyOnWriteArrayList<Endpoint>()
+    val endpoints = MutableLiveData<List<Endpoint>>(_endpoints)
 
-    private val _messages = mutableListOf<NearbyConnectivityManager.Message>()
-    val messages = MutableLiveData<List<NearbyConnectivityManager.Message>>(_messages)
+    private val _messages = mutableListOf<Message>()
+    val messages = MutableLiveData<List<Message>>(_messages)
 
     abstract fun startDiscovery()
     abstract fun stopDiscovery()
@@ -37,7 +33,7 @@ abstract class ConnectivityManager(
     abstract fun disconnectFromEndpoint(endpointId: String)
 
     fun toggleAdvertising() {
-        if (advertisingStatus.value == NearbyConnectivityManager.ConnectivityStatus.INACTIVE) {
+        if (advertisingStatus.value == ConnectivityStatus.INACTIVE) {
             startAdvertising()
         } else {
             stopAdvertising()
@@ -45,7 +41,7 @@ abstract class ConnectivityManager(
     }
 
     fun toggleDiscovery() {
-        if (discoveryStatus.value == NearbyConnectivityManager.ConnectivityStatus.INACTIVE) {
+        if (discoveryStatus.value == ConnectivityStatus.INACTIVE) {
             startDiscovery()
         } else {
             stopDiscovery()
@@ -57,11 +53,11 @@ abstract class ConnectivityManager(
      * Endpoints
      */
 
-    protected fun findEndpoint(endpointId: String): NearbyConnectivityManager.Endpoint? {
+    protected fun findEndpoint(endpointId: String): Endpoint? {
         return _endpoints.find { it.endpointId == endpointId }
     }
 
-    protected fun addEndpoint(endpoint: NearbyConnectivityManager.Endpoint) {
+    protected fun addEndpoint(endpoint: Endpoint) {
         Log.d(
             TAG,
             "addEndpoint " + endpoint.endpointId + " " + endpoint.endpointName + " " + endpoint.state
@@ -82,7 +78,7 @@ abstract class ConnectivityManager(
         notifyEndpointsChanged()
     }
 
-    protected fun updateEndpointState(endpointId: String, state: NearbyConnectivityManager.EndpointState) {
+    protected fun updateEndpointState(endpointId: String, state: EndpointState) {
         Log.d(TAG, "updateEndpoint $endpointId -> $state")
 
         val endpoint = findEndpoint(endpointId)
@@ -108,18 +104,18 @@ abstract class ConnectivityManager(
     fun sendMessage(message: String) {
         Log.d(TAG, "sendMessage $message to ${_endpoints.size} endpoints")
 
-        addMessage(NearbyConnectivityManager.Message(message, Date(), username))
+        addMessage(Message(message, Date(), username))
 
         for (endpoint in _endpoints) {
-            if (endpoint.state == NearbyConnectivityManager.EndpointState.CONNECTED) {
+            if (endpoint.state == EndpointState.CONNECTED) {
                 sendMessage(endpoint, message)
             }
         }
     }
 
-    abstract fun sendMessage(endpoint: NearbyConnectivityManager.Endpoint, message: String)
+    abstract fun sendMessage(endpoint: Endpoint, message: String)
 
-    protected fun addMessage(message: NearbyConnectivityManager.Message) {
+    protected fun addMessage(message: Message) {
         _messages.add(message)
         messages.postValue(_messages)
     }
@@ -141,4 +137,10 @@ abstract class ConnectivityManager(
 
 interface ConnectivityManagerFactory {
     fun getInstance(context: Context): ConnectivityManager
+}
+
+enum class ConnectivityStatus {
+    INACTIVE,
+    PENDING,
+    ACTIVE
 }

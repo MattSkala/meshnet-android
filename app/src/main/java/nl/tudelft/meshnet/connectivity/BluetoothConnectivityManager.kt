@@ -40,7 +40,11 @@ class BluetoothConnectivityManager(
                     val deviceName = device.name
                     val deviceHardwareAddress = device.address // MAC address
                     Log.d("BTConnectivityMgr","found device: $deviceName $deviceHardwareAddress ${deviceClass.deviceClass}")
-                    addEndpoint(NearbyConnectivityManager.Endpoint(deviceHardwareAddress, deviceName, NearbyConnectivityManager.EndpointState.DISCOVERED))
+                    addEndpoint(Endpoint(deviceHardwareAddress, deviceName, EndpointState.DISCOVERED))
+                }
+                BluetoothAdapter.ACTION_DISCOVERY_FINISHED -> {
+                    stopDiscovery()
+                    Toast.makeText(context, "Discovery finished", Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -48,33 +52,33 @@ class BluetoothConnectivityManager(
 
     override fun startDiscovery() {
         // Register for broadcasts when a device is discovered.
-        val filter = IntentFilter(BluetoothDevice.ACTION_FOUND)
-        context.registerReceiver(receiver, filter)
+        context.registerReceiver(receiver, IntentFilter(BluetoothDevice.ACTION_FOUND))
+        context.registerReceiver(receiver, IntentFilter(BluetoothAdapter.ACTION_DISCOVERY_FINISHED))
 
         if (bluetoothAdapter.startDiscovery()) {
-            discoveryStatus.value = NearbyConnectivityManager.ConnectivityStatus.ACTIVE
+            discoveryStatus.value = ConnectivityStatus.ACTIVE
         }
     }
 
     override fun stopDiscovery() {
         context.unregisterReceiver(receiver)
         bluetoothAdapter.cancelDiscovery()
-        discoveryStatus.value = NearbyConnectivityManager.ConnectivityStatus.INACTIVE
+        discoveryStatus.value = ConnectivityStatus.INACTIVE
     }
 
     override fun startAdvertising() {
         acceptThread = AcceptThread()
         acceptThread?.start()
-        advertisingStatus.value = NearbyConnectivityManager.ConnectivityStatus.ACTIVE
+        advertisingStatus.value = ConnectivityStatus.ACTIVE
     }
 
     override fun stopAdvertising() {
         acceptThread?.cancel()
-        advertisingStatus.value = NearbyConnectivityManager.ConnectivityStatus.INACTIVE
+        advertisingStatus.value = ConnectivityStatus.INACTIVE
     }
 
     override fun requestConnection(endpointId: String) {
-        updateEndpointState(endpointId, NearbyConnectivityManager.EndpointState.CONNECTING)
+        updateEndpointState(endpointId, EndpointState.CONNECTING)
 
         val remoteDevice = bluetoothAdapter.getRemoteDevice(endpointId)
         Log.d(TAG, "requestConnection: $remoteDevice")
@@ -88,10 +92,10 @@ class BluetoothConnectivityManager(
         connectedThreads.remove(endpointId)
         thread?.cancel()
 
-        updateEndpointState(endpointId, NearbyConnectivityManager.EndpointState.DISCOVERED)
+        updateEndpointState(endpointId, EndpointState.DISCOVERED)
     }
 
-    override fun sendMessage(endpoint: NearbyConnectivityManager.Endpoint, message: String) {
+    override fun sendMessage(endpoint: Endpoint, message: String) {
         val thread = connectedThreads[endpoint.endpointId]
         if (thread != null) {
             thread.write(message.toByteArray())
@@ -105,10 +109,10 @@ class BluetoothConnectivityManager(
 
         val address = socket.remoteDevice.address
         addEndpoint(
-            NearbyConnectivityManager.Endpoint(
+            Endpoint(
                 address,
                 socket.remoteDevice.name,
-                NearbyConnectivityManager.EndpointState.CONNECTED
+                EndpointState.CONNECTED
             )
         )
 
@@ -185,6 +189,7 @@ class BluetoothConnectivityManager(
         public override fun run() {
             // Cancel discovery because it otherwise slows down the connection.
             bluetoothAdapter.cancelDiscovery()
+            discoveryStatus.postValue(ConnectivityStatus.INACTIVE)
 
             try {
                 mmSocket?.let { socket ->
@@ -239,10 +244,10 @@ class BluetoothConnectivityManager(
 
                 val text = mmBuffer.copyOf(numBytes).toString(Charsets.UTF_8)
                 val sender = mmSocket.remoteDevice.name ?: mmSocket.remoteDevice.address
-                addMessage(NearbyConnectivityManager.Message(text, Date(), sender))
+                addMessage(Message(text, Date(), sender))
             }
 
-            updateEndpointState(mmSocket.remoteDevice.address, NearbyConnectivityManager.EndpointState.DISCOVERED)
+            updateEndpointState(mmSocket.remoteDevice.address, EndpointState.DISCOVERED)
         }
 
         // Call this from the main activity to send data to the remote device.
