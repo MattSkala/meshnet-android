@@ -1,249 +1,90 @@
 package nl.tudelft.meshnet.connectivity
 
-import android.annotation.SuppressLint
 import android.content.Context
 import android.util.Log
 import androidx.lifecycle.MutableLiveData
 import androidx.preference.PreferenceManager
 import com.google.android.gms.nearby.Nearby
-import com.google.android.gms.nearby.connection.*
+import com.google.android.gms.nearby.connection.Payload
 import java.util.*
+import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.random.Random
 
-class ConnectivityManager(
+abstract class ConnectivityManager(
     private val context: Context
 ) {
-    val advertisingStatus = MutableLiveData<ConnectivityStatus>(ConnectivityStatus.INACTIVE)
-    val discoveryStatus = MutableLiveData<ConnectivityStatus>(ConnectivityStatus.INACTIVE)
-
-    private val _endpoints = mutableListOf<Endpoint>()
-    val endpoints = MutableLiveData<List<Endpoint>>(_endpoints)
-
-    private val _messages = mutableListOf<Message>()
-    val messages = MutableLiveData<List<Message>>(_messages)
-
-    private val username by lazy {
+    protected val username by lazy {
         PreferenceManager.getDefaultSharedPreferences(context)
             .getString("username", "guest" + Random.nextInt(1000))!!
     }
 
-    private val connectionInfos = mutableMapOf<String, ConnectionInfo>()
+    val advertisingStatus = MutableLiveData<NearbyConnectivityManager.ConnectivityStatus>(
+        NearbyConnectivityManager.ConnectivityStatus.INACTIVE)
+    val discoveryStatus = MutableLiveData<NearbyConnectivityManager.ConnectivityStatus>(
+        NearbyConnectivityManager.ConnectivityStatus.INACTIVE)
 
-    private val endpointDiscoveryCallback = object : EndpointDiscoveryCallback() {
-        override fun onEndpointFound(endpointId: String, info: DiscoveredEndpointInfo) {
-            Log.d(TAG, "onEndpointFound $endpointId $info")
-            // An endpoint was found. We request a connection to it.
+    private val _endpoints = CopyOnWriteArrayList<NearbyConnectivityManager.Endpoint>()
+    val endpoints = MutableLiveData<List<NearbyConnectivityManager.Endpoint>>(_endpoints)
 
-            if (findEndpoint(endpointId) == null) {
-                addEndpoint(Endpoint(endpointId, info.endpointName, EndpointState.DISCOVERED))
-            }
-        }
+    private val _messages = mutableListOf<NearbyConnectivityManager.Message>()
+    val messages = MutableLiveData<List<NearbyConnectivityManager.Message>>(_messages)
 
-        override fun onEndpointLost(endpointId: String) {
-            // A previously discovered endpoint has gone away.
-            Log.d(TAG, "onEndpointLost $endpointId")
-
-            removeEndpoint(endpointId)
-        }
-    }
-
-    private val payloadCallback = object : PayloadCallback() {
-        override fun onPayloadReceived(endpointId: String, payload: Payload) {
-            Log.d(TAG, "onPayloadReceived $endpointId $payload")
-
-            if (payload.type == Payload.Type.BYTES) {
-                val message = payload.asBytes()?.toString(Charsets.UTF_8)
-                Log.d(TAG, "onPayloadReceived: $message")
-
-                if (message != null) {
-                    val name = findEndpoint(endpointId)?.endpointName ?: endpointId
-                    _messages.add(Message(message, Date(), name))
-                    messages.value = _messages
-                }
-            }
-        }
-
-        override fun onPayloadTransferUpdate(endpointId: String, update: PayloadTransferUpdate) {
-            Log.d(TAG, "onPayloadTransferUpdate $endpointId ${update.payloadId} ${update.bytesTransferred}/${update.totalBytes} ${update.status}")
-        }
-    }
-
-    private val connectionLifecycleCallback = object : ConnectionLifecycleCallback() {
-        override fun onConnectionInitiated(endpointId: String, connectionInfo: ConnectionInfo) {
-            Log.d(TAG, "onConnectionInitiated $endpointId")
-
-            addEndpoint(Endpoint(endpointId, connectionInfo.endpointName, EndpointState.CONNECTING))
-
-            // Automatically accept the connection on both sides.
-            Nearby.getConnectionsClient(context)
-                .acceptConnection(endpointId, payloadCallback)
-        }
-
-        override fun onConnectionResult(endpointId: String, result: ConnectionResolution) {
-            Log.d(TAG, "onConnectionResult $endpointId ${result.status.statusCode}")
-
-            when (result.status.statusCode) {
-                ConnectionsStatusCodes.STATUS_OK -> {
-                    // We're connected! Can now start sending and receiving data.
-                    updateEndpointState(endpointId, EndpointState.CONNECTED)
-                }
-                ConnectionsStatusCodes.STATUS_CONNECTION_REJECTED -> {
-                    // The connection was rejected by one or both sides.
-                    updateEndpointState(endpointId, EndpointState.DISCOVERED)
-                }
-                ConnectionsStatusCodes.STATUS_ERROR -> {
-                    // The connection broke before it was able to be accepted.
-                    updateEndpointState(endpointId, EndpointState.DISCOVERED)
-                }
-                else -> {
-                    // Unknown status code
-                    updateEndpointState(endpointId, EndpointState.DISCOVERED)
-                }
-            }
-
-            connectionInfos.remove(endpointId)
-        }
-
-        override fun onDisconnected(endpointId: String) {
-            // We've been disconnected from this endpoint. No more data can be
-            // sent or received.
-            Log.d(TAG, "onDisconnect $endpointId")
-
-            updateEndpointState(endpointId, EndpointState.DISCOVERED)
-        }
-    }
-
-    fun startAdvertising() {
-        advertisingStatus.value = ConnectivityStatus.PENDING
-        val advertisingOptions = AdvertisingOptions.Builder().setStrategy(STRATEGY).build()
-        Nearby.getConnectionsClient(context)
-            .startAdvertising(
-                username,
-                SERVICE_ID, connectionLifecycleCallback, advertisingOptions
-            )
-            .addOnSuccessListener {
-                // We're advertising!
-                Log.d(TAG, "startAdvertising success")
-                advertisingStatus.value = ConnectivityStatus.ACTIVE
-            }
-            .addOnFailureListener { e ->
-                // We were unable to start advertising.
-                e.printStackTrace()
-                advertisingStatus.value = ConnectivityStatus.INACTIVE
-            }
-    }
-
-    fun stopAdvertising() {
-        Nearby.getConnectionsClient(context)
-            .stopAdvertising()
-        advertisingStatus.value = ConnectivityStatus.INACTIVE
-    }
+    abstract fun startDiscovery()
+    abstract fun stopDiscovery()
+    abstract fun startAdvertising()
+    abstract fun stopAdvertising()
+    abstract fun requestConnection(endpointId: String)
+    abstract fun disconnectFromEndpoint(endpointId: String)
 
     fun toggleAdvertising() {
-        if (advertisingStatus.value == ConnectivityStatus.INACTIVE) {
+        if (advertisingStatus.value == NearbyConnectivityManager.ConnectivityStatus.INACTIVE) {
             startAdvertising()
         } else {
             stopAdvertising()
         }
     }
 
-    fun startDiscovery() {
-        discoveryStatus.value = ConnectivityStatus.PENDING
-        val discoveryOptions = DiscoveryOptions.Builder().setStrategy(STRATEGY).build()
-        Nearby.getConnectionsClient(context)
-            .startDiscovery(SERVICE_ID, endpointDiscoveryCallback, discoveryOptions)
-            .addOnSuccessListener {
-                // We're discovering!
-                Log.d(TAG, "startDiscovery success")
-                discoveryStatus.value = ConnectivityStatus.ACTIVE
-            }
-            .addOnFailureListener { e ->
-                // We're unable to start discovering.
-                e.printStackTrace()
-                discoveryStatus.value = ConnectivityStatus.INACTIVE
-            }
-    }
-
-    fun stopDiscovery() {
-        Nearby.getConnectionsClient(context)
-            .stopDiscovery()
-        discoveryStatus.value = ConnectivityStatus.INACTIVE
-    }
-
     fun toggleDiscovery() {
-        if (discoveryStatus.value == ConnectivityStatus.INACTIVE) {
+        if (discoveryStatus.value == NearbyConnectivityManager.ConnectivityStatus.INACTIVE) {
             startDiscovery()
         } else {
             stopDiscovery()
         }
     }
 
-    fun requestConnection(endpointId: String) {
-        updateEndpointState(endpointId, EndpointState.CONNECTING)
-        Nearby.getConnectionsClient(context)
-            .requestConnection(username, endpointId, connectionLifecycleCallback)
-            .addOnSuccessListener {
-                // We successfully requested a connection. Now both sides
-                // must accept before the connection is established.
-                Log.d(TAG, "requestConnection success $endpointId")
-            }
-            .addOnFailureListener { e: Exception ->
-                // Nearby Connections failed to request the connection.
-                Log.d(TAG, "requestConnection failure $endpointId")
-                e.printStackTrace()
-                updateEndpointState(endpointId, EndpointState.DISCOVERED)
-            }
-    }
 
-    fun disconnectFromEndpoint(endpointId: String) {
-        Nearby.getConnectionsClient(context)
-            .disconnectFromEndpoint(endpointId)
-        updateEndpointState(endpointId, EndpointState.DISCOVERED)
-    }
-
-    /**
-     * Broadcasts a message to all connected endpoints.
+    /*
+     * Endpoints
      */
-    fun sendMessage(message: String) {
-        _messages.add(Message(message, Date(), username))
-        messages.value = _messages
 
-        for (endpoint in _endpoints) {
-            if (endpoint.state == EndpointState.CONNECTED) {
-                sendMessage(endpoint, message)
-            }
-        }
-    }
-
-    fun sendMessage(endpoint: Endpoint, message: String) {
-        Nearby.getConnectionsClient(context).sendPayload(
-            endpoint.endpointId,
-            Payload.fromBytes(message.toByteArray())
-        )
-    }
-
-    private fun findEndpoint(endpointId: String): Endpoint? {
+    protected fun findEndpoint(endpointId: String): NearbyConnectivityManager.Endpoint? {
         return _endpoints.find { it.endpointId == endpointId }
     }
 
-    private fun addEndpoint(endpoint: Endpoint) {
+    protected fun addEndpoint(endpoint: NearbyConnectivityManager.Endpoint) {
+        Log.d(
+            TAG,
+            "addEndpoint " + endpoint.endpointId + " " + endpoint.endpointName + " " + endpoint.state
+        )
         val existing = findEndpoint(endpoint.endpointId)
         if (existing != null) {
             _endpoints.remove(existing)
         }
         _endpoints.add(endpoint)
-        endpoints.value = _endpoints
         notifyEndpointsChanged()
     }
 
-    private fun removeEndpoint(endpointId: String) {
+    protected fun removeEndpoint(endpointId: String) {
+        Log.d(TAG, "removeEndpoint $endpointId")
         _endpoints.removeAll {
             it.endpointId == endpointId
         }
         notifyEndpointsChanged()
     }
 
-    private fun updateEndpointState(endpointId: String, state: EndpointState) {
+    protected fun updateEndpointState(endpointId: String, state: NearbyConnectivityManager.EndpointState) {
+        Log.d(TAG, "updateEndpoint $endpointId -> $state")
+
         val endpoint = findEndpoint(endpointId)
         if (endpoint != null) {
             endpoint.state = state
@@ -253,51 +94,51 @@ class ConnectivityManager(
         }
     }
 
-    private fun notifyEndpointsChanged() {
-        endpoints.value = _endpoints
+    protected fun notifyEndpointsChanged() {
+        endpoints.postValue(_endpoints)
     }
 
-    companion object {
-        private val STRATEGY = Strategy.P2P_CLUSTER
-        private const val SERVICE_ID = "meshnet"
-        private const val TAG = "ConnectivityManager"
+    /*
+     * Messages
+     */
 
-        @SuppressLint("StaticFieldLeak")
-        private var instance: ConnectivityManager? = null
+    /**
+     * Broadcasts a message to all connected endpoints.
+     */
+    fun sendMessage(message: String) {
+        Log.d(TAG, "sendMessage $message to ${_endpoints.size} endpoints")
 
-        fun getInstance(context: Context): ConnectivityManager {
-            val i = instance
-            if (i!= null) {
-                return i
+        addMessage(NearbyConnectivityManager.Message(message, Date(), username))
+
+        for (endpoint in _endpoints) {
+            if (endpoint.state == NearbyConnectivityManager.EndpointState.CONNECTED) {
+                sendMessage(endpoint, message)
             }
-
-            val i2 = ConnectivityManager(context.applicationContext)
-            instance = i2
-            return i2
         }
     }
 
-    enum class ConnectivityStatus {
-        INACTIVE,
-        PENDING,
-        ACTIVE
+    abstract fun sendMessage(endpoint: NearbyConnectivityManager.Endpoint, message: String)
+
+    protected fun addMessage(message: NearbyConnectivityManager.Message) {
+        _messages.add(message)
+        messages.postValue(_messages)
     }
 
-    enum class EndpointState {
-        DISCOVERED,
-        CONNECTING,
-        CONNECTED
+    companion object {
+        private const val TAG = "ConnectivityManager"
+
+        fun getInstance(context: Context): ConnectivityManager {
+            val className = PreferenceManager.getDefaultSharedPreferences(context)
+                .getString("connectivity", "NearbyConnectivityManager")!!
+
+            return when (className) {
+                "BluetoothConnectivityManager" -> BluetoothConnectivityManager.getInstance(context)
+                else -> NearbyConnectivityManager.getInstance(context)
+            }
+        }
     }
+}
 
-    data class Endpoint(
-        val endpointId: String,
-        val endpointName: String,
-        var state: EndpointState
-    )
-
-    data class Message(
-        val message: String,
-        val timestamp: Date,
-        val sender: String
-    )
+interface ConnectivityManagerFactory {
+    fun getInstance(context: Context): ConnectivityManager
 }

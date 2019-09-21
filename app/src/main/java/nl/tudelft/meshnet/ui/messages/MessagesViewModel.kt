@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.map
 import nl.tudelft.meshnet.connectivity.ConnectivityManager
+import nl.tudelft.meshnet.connectivity.NearbyConnectivityManager
 
 class MessagesViewModel(
     app: Application

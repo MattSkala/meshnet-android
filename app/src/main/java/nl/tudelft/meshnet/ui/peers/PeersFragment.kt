@@ -1,12 +1,13 @@
 package nl.tudelft.meshnet.ui.peers
 
 import android.Manifest
+import android.bluetooth.BluetoothAdapter
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.Observer
@@ -15,7 +16,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.mattskala.itemadapter.ItemAdapter
 import kotlinx.android.synthetic.main.fragment_peers.*
 import nl.tudelft.meshnet.R
-import nl.tudelft.meshnet.connectivity.ConnectivityManager
+import nl.tudelft.meshnet.connectivity.NearbyConnectivityManager
 
 class PeersFragment : Fragment() {
     private val viewModel by lazy {
@@ -46,6 +47,14 @@ class PeersFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         btnAdvertising.setOnClickListener {
+            if (viewModel.isBluetooth()) {
+                val discoverableIntent: Intent =
+                    Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE).apply {
+                        putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 300)
+                    }
+                activity?.startActivity(discoverableIntent)
+            }
+
             viewModel.toggleAdvertising()
         }
 
@@ -61,9 +70,9 @@ class PeersFragment : Fragment() {
         viewModel.advertisingStatus.observe(this, Observer {
             if (it != null) {
                 btnAdvertising.setText(when (it) {
-                    ConnectivityManager.ConnectivityStatus.INACTIVE -> R.string.start_advertising
-                    ConnectivityManager.ConnectivityStatus.PENDING -> R.string.starting
-                    ConnectivityManager.ConnectivityStatus.ACTIVE -> R.string.stop_advertising
+                    NearbyConnectivityManager.ConnectivityStatus.INACTIVE -> R.string.start_advertising
+                    NearbyConnectivityManager.ConnectivityStatus.PENDING -> R.string.starting
+                    NearbyConnectivityManager.ConnectivityStatus.ACTIVE -> R.string.stop_advertising
                 })
             }
         })
@@ -71,9 +80,9 @@ class PeersFragment : Fragment() {
         viewModel.discoveryStatus.observe(this, Observer {
             if (it != null) {
                 btnDiscovery.setText(when (it) {
-                    ConnectivityManager.ConnectivityStatus.INACTIVE -> R.string.start_discovery
-                    ConnectivityManager.ConnectivityStatus.PENDING -> R.string.starting
-                    ConnectivityManager.ConnectivityStatus.ACTIVE -> R.string.stop_discovery
+                    NearbyConnectivityManager.ConnectivityStatus.INACTIVE -> R.string.start_discovery
+                    NearbyConnectivityManager.ConnectivityStatus.PENDING -> R.string.starting
+                    NearbyConnectivityManager.ConnectivityStatus.ACTIVE -> R.string.stop_discovery
                 })
             }
         })

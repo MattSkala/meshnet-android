@@ -10,4 +10,14 @@
     <string name="settings">Settings</string>
     <string name="enter_message">Enter a message</string>
     <string name="send">Send</string>
+
+    <string-array name="connectivity_entries">
+        <item>Nearby Connections API</item>
+        <item>Bluetooth</item>
+    </string-array>
+
+    <string-array name="connectivity_values">
+        <item>NearbyConnectivityManager</item>
+        <item>BluetoothConnectivityManager</item>
+    </string-array>
 </resources>

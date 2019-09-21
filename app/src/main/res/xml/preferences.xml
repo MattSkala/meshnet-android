@@ -6,4 +6,11 @@
         app:key="username"
         app:title="Username" />
 
+    <ListPreference
+        app:key="connectivity"
+        app:title="Connectivity Manager"
+        app:entries="@array/connectivity_entries"
+        app:entryValues="@array/connectivity_values"
+        app:defaultValue="NearbyConnectivityManager" />
+
 </PreferenceScreen>
