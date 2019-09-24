@@ -8,6 +8,7 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.Observer
@@ -25,6 +26,8 @@ class PeersFragment : Fragment() {
     }
 
     private val adapter = ItemAdapter()
+
+    private val bluetoothAdapter: BluetoothAdapter = BluetoothAdapter.getDefaultAdapter()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -48,7 +51,9 @@ class PeersFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         btnAdvertising.setOnClickListener {
-            if (viewModel.isBluetooth() && viewModel.advertisingStatus.value == ConnectivityStatus.INACTIVE) {
+            if (!ensureBluetoothEnabled()) return@setOnClickListener
+
+            if (viewModel.isBluetoothDiscoveryRequired() && viewModel.advertisingStatus.value == ConnectivityStatus.INACTIVE) {
                 val discoverableIntent: Intent =
                     Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE).apply {
                         putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 300)
@@ -60,6 +65,8 @@ class PeersFragment : Fragment() {
         }
 
         btnDiscovery.setOnClickListener {
+            if (!ensureBluetoothEnabled()) return@setOnClickListener
+
             if (checkPermissions()) {
                 viewModel.toggleDiscovery()
             }
@@ -106,7 +113,20 @@ class PeersFragment : Fragment() {
         }
     }
 
+    private fun ensureBluetoothEnabled(): Boolean {
+        if (viewModel.isBluetoothRequired()) {
+            // Ensures Bluetooth is available on the device and it is enabled. If not,
+            // displays a dialog requesting user permission to enable Bluetooth.
+            if (!bluetoothAdapter.isEnabled) {
+                val enableBtIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
+                startActivityForResult(enableBtIntent, REQUEST_CODE_ENABLE_BT)
+            }
+        }
+        return bluetoothAdapter.isEnabled
+    }
+
     companion object {
         private const val REQUEST_CODE_PERMISSIONS = 10
+        private const val REQUEST_CODE_ENABLE_BT = 20
     }
 }

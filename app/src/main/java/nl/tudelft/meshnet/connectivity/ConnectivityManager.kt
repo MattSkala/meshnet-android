@@ -32,6 +32,8 @@ abstract class ConnectivityManager(
     abstract fun requestConnection(endpointId: String)
     abstract fun disconnectFromEndpoint(endpointId: String)
 
+    open fun isBluetoothRequired(): Boolean = false
+
     fun toggleAdvertising() {
         if (advertisingStatus.value == ConnectivityStatus.INACTIVE) {
             startAdvertising()
@@ -129,6 +131,7 @@ abstract class ConnectivityManager(
 
             return when (className) {
                 "BluetoothConnectivityManager" -> BluetoothConnectivityManager.getInstance(context)
+                "BleConnectivityManager" -> BleConnectivityManager.getInstance(context)
                 else -> NearbyConnectivityManager.getInstance(context)
             }
         }

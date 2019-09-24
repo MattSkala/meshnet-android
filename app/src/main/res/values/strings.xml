@@ -14,10 +14,12 @@
     <string-array name="connectivity_entries">
         <item>Nearby Connections API</item>
         <item>Bluetooth</item>
+        <item>Bluetooth LE</item>
     </string-array>
 
     <string-array name="connectivity_values">
         <item>NearbyConnectivityManager</item>
         <item>BluetoothConnectivityManager</item>
+        <item>BleConnectivityManager</item>
     </string-array>
 </resources>

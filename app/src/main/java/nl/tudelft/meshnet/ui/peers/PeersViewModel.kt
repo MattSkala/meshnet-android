@@ -3,9 +3,7 @@ package nl.tudelft.meshnet.ui.peers
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.map
-import androidx.preference.PreferenceManager
 import nl.tudelft.meshnet.connectivity.*
-import kotlin.random.Random
 
 class PeersViewModel(
     private val app: Application
@@ -41,7 +39,11 @@ class PeersViewModel(
         connectivityManager.disconnectFromEndpoint(endpoint.endpointId)
     }
 
-    fun isBluetooth(): Boolean {
+    fun isBluetoothDiscoveryRequired(): Boolean {
         return connectivityManager is BluetoothConnectivityManager
+    }
+
+    fun isBluetoothRequired(): Boolean {
+        return connectivityManager.isBluetoothRequired()
     }
 }
