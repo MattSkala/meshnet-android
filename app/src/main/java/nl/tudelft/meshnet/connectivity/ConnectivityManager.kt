@@ -132,6 +132,7 @@ abstract class ConnectivityManager(
             return when (className) {
                 "BluetoothConnectivityManager" -> BluetoothConnectivityManager.getInstance(context)
                 "BleConnectivityManager" -> BleConnectivityManager.getInstance(context)
+                "BleGattConnectivityManager" -> BleGattConnectivityManager.getInstance(context)
                 else -> NearbyConnectivityManager.getInstance(context)
             }
         }
