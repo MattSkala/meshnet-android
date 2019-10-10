@@ -1,6 +1,7 @@
 package nl.tudelft.meshnet.ui.peers
 
 import android.app.Application
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.map
 import nl.tudelft.meshnet.connectivity.*
@@ -21,6 +22,10 @@ class PeersViewModel(
                 { it.state != EndpointState.CONNECTED },
                 { it.state != EndpointState.CONNECTING }
             )).map { PeerItem(it) }
+    }
+
+    init {
+        Log.d("PeersVM", "ConnectivityManager isSupported? " + connectivityManager.isSupported())
     }
 
     fun toggleAdvertising() {

@@ -5,6 +5,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.PackageManager
 import android.util.Log
 import android.widget.Toast
 import nl.tudelft.meshnet.util.SingletonHolder
@@ -12,6 +13,10 @@ import nl.tudelft.meshnet.util.SingletonHolder
 class BluetoothConnectivityManager(
     private val context: Context
 ) : BaseBluetoothConnectivityManager(context) {
+
+    override fun isSupported(): Boolean {
+        return context.packageManager.hasSystemFeature(PackageManager.FEATURE_BLUETOOTH)
+    }
 
     // Create a BroadcastReceiver for ACTION_FOUND.
     private val receiver = object : BroadcastReceiver() {

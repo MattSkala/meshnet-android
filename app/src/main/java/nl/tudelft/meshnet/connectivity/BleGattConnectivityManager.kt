@@ -6,6 +6,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.ParcelUuid
 import android.os.Parcelable
@@ -17,6 +18,10 @@ import java.util.*
 class BleGattConnectivityManager(
     private val context: Context
 ) : BaseBluetoothConnectivityManager(context) {
+    override fun isSupported(): Boolean {
+        return context.packageManager.hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)
+    }
+
     private val bluetoothManager: BluetoothManager =
         context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
 

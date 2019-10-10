@@ -2,6 +2,7 @@ package nl.tudelft.meshnet.connectivity
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.pm.PackageManager
 import android.util.Log
 import com.google.android.gms.nearby.Nearby
 import com.google.android.gms.nearby.connection.*
@@ -11,6 +12,10 @@ class NearbyConnectivityManager(
     private val context: Context
 ) : ConnectivityManager(context) {
     private val connectionInfos = mutableMapOf<String, ConnectionInfo>()
+
+    override fun isSupported(): Boolean {
+        return context.packageManager.hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)
+    }
 
     private val endpointDiscoveryCallback = object : EndpointDiscoveryCallback() {
         override fun onEndpointFound(endpointId: String, info: DiscoveredEndpointInfo) {

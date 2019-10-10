@@ -6,6 +6,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Handler
 import android.os.ParcelUuid
@@ -24,6 +25,10 @@ import java.lang.Exception
 class BleL2CapConnectivityManager(
     private val context: Context
 ) : BaseBluetoothConnectivityManager(context) {
+    override fun isSupported(): Boolean {
+        return context.packageManager.hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)
+    }
+
     private val leScanner by lazy {
         bluetoothAdapter.bluetoothLeScanner
     }

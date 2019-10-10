@@ -19,18 +19,25 @@ abstract class ConnectivityManager(
     val advertisingStatus = MutableLiveData<ConnectivityStatus>(ConnectivityStatus.INACTIVE)
     val discoveryStatus = MutableLiveData<ConnectivityStatus>(ConnectivityStatus.INACTIVE)
 
-    private val _endpoints = CopyOnWriteArrayList<Endpoint>()
+    protected val _endpoints = CopyOnWriteArrayList<Endpoint>()
     val endpoints = MutableLiveData<List<Endpoint>>(_endpoints)
 
     private val _messages = mutableListOf<Message>()
     val messages = MutableLiveData<List<Message>>(_messages)
 
+    abstract fun isSupported(): Boolean
     abstract fun startDiscovery()
     abstract fun stopDiscovery()
     abstract fun startAdvertising()
     abstract fun stopAdvertising()
     abstract fun requestConnection(endpointId: String)
     abstract fun disconnectFromEndpoint(endpointId: String)
+
+    /**
+     * Stops everything. Should be called when the connectivity manager is not needed anymore.
+     */
+    open fun stop() {
+    }
 
     open fun isBluetoothRequired(): Boolean = false
 
@@ -108,6 +115,10 @@ abstract class ConnectivityManager(
 
         addMessage(Message(message, Date(), username))
 
+        broadcastMessage(message)
+    }
+
+    open fun broadcastMessage(message: String) {
         for (endpoint in _endpoints) {
             if (endpoint.state == EndpointState.CONNECTED) {
                 sendMessage(endpoint, message)
@@ -133,6 +144,7 @@ abstract class ConnectivityManager(
                 "BluetoothConnectivityManager" -> BluetoothConnectivityManager.getInstance(context)
                 "BleConnectivityManager" -> BleConnectivityManager.getInstance(context)
                 "BleGattConnectivityManager" -> BleGattConnectivityManager.getInstance(context)
+                "WifiAwareConnectivityManager" -> WifiAwareConnectivityManager.getInstance(context)
                 else -> NearbyConnectivityManager.getInstance(context)
             }
         }

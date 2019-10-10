@@ -16,6 +16,7 @@
         <item>Bluetooth</item>
         <item>Bluetooth LE + Classic</item>
         <item>Bluetooth LE Gatt</item>
+        <item>WiFi Aware</item>
     </string-array>
 
     <string-array name="connectivity_values">
@@ -23,5 +24,6 @@
         <item>BluetoothConnectivityManager</item>
         <item>BleConnectivityManager</item>
         <item>BleGattConnectivityManager</item>
+        <item>WifiAwareConnectivityManager</item>
     </string-array>
 </resources>
