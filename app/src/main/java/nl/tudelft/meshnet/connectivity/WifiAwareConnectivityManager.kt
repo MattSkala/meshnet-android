@@ -2,15 +2,21 @@ package nl.tudelft.meshnet.connectivity
 
 import android.content.Context
 import android.content.pm.PackageManager
+import android.net.LinkProperties
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import android.net.wifi.aware.*
 import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.core.content.getSystemService
 import nl.tudelft.meshnet.util.SingletonHolder
+import java.net.ServerSocket
 import kotlin.random.Random
 
-@RequiresApi(Build.VERSION_CODES.O)
+// TODO: refactor connection for availability on >= O
+@RequiresApi(Build.VERSION_CODES.Q)
 class WifiAwareConnectivityManager(
     private val context: Context
 ) : ConnectivityManager(context) {
@@ -19,9 +25,38 @@ class WifiAwareConnectivityManager(
         context.getSystemService(Context.WIFI_AWARE_SERVICE) as WifiAwareManager?
     }
 
+    private val connectivityManager: android.net.ConnectivityManager by lazy {
+        context.getSystemService(Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
+    }
+
     private var wifiAwareSession: WifiAwareSession? = null
     private var publishDiscoverySession: PublishDiscoverySession? = null
     private var subscribeDiscoverySession: SubscribeDiscoverySession? = null
+    private var peerAwareInfo: WifiAwareNetworkInfo? = null
+
+    private val networkCallback = object : android.net.ConnectivityManager.NetworkCallback() {
+        override fun onAvailable(network: Network) {
+            Log.d(TAG, "onAvailable")
+
+            val peerAwareInfo = peerAwareInfo
+            // TODO: call this only for the subscriber
+            if (peerAwareInfo != null) {
+                val peerIpv6 = peerAwareInfo.peerIpv6Addr
+                val peerPort = peerAwareInfo.port
+                val socket = network.socketFactory.createSocket(peerIpv6, peerPort)
+                // TODO: store socket reference
+            }
+        }
+
+        override fun onCapabilitiesChanged(network: Network, networkCapabilities: NetworkCapabilities) {
+            Log.d(TAG, "onCapabilitiesChanged")
+            peerAwareInfo = networkCapabilities.transportInfo as WifiAwareNetworkInfo
+        }
+
+        override fun onLost(network: Network) {
+            Log.d(TAG, "onLost")
+        }
+    }
 
     private val peerHandles = mutableMapOf<String, PeerHandle>()
 
@@ -63,8 +98,29 @@ class WifiAwareConnectivityManager(
 
             override fun onMessageReceived(peerHandle: PeerHandle, message: ByteArray) {
                 Log.d(TAG, "onMessageReceived")
+
+                requestNetwork(publishDiscoverySession!!, peerHandle, 0)
             }
         }, null)
+
+        val ss = ServerSocket(0)
+        val port = ss.localPort
+        // TODO: store server socket reference, accept incoming connections?
+    }
+
+    private fun requestNetwork(discoverySession: DiscoverySession, peerHandle: PeerHandle, port: Int? = null) {
+        val networkSpecifierBuilder = WifiAwareNetworkSpecifier.Builder(discoverySession, peerHandle)
+            .setPskPassphrase("somePassword")
+        if (port != null) {
+            networkSpecifierBuilder.setPort(port)
+        }
+        val networkSpecifier = networkSpecifierBuilder.build()
+        val networkRequest = NetworkRequest.Builder()
+            .addTransportType(NetworkCapabilities.TRANSPORT_WIFI_AWARE)
+            .setNetworkSpecifier(networkSpecifier)
+            .build()
+
+        connectivityManager.requestNetwork(networkRequest, networkCallback);
     }
 
     override fun stopAdvertising() {
@@ -119,12 +175,16 @@ class WifiAwareConnectivityManager(
 
     override fun requestConnection(endpointId: String) {
         val peerHandle = peerHandles[endpointId]!!
-        // TODO: implement connection
-        // https://developer.android.com/guide/topics/connectivity/wifi-aware#create_a_connection
+        val messageId = Random.nextInt()
+        val message = "CONNECTION_REQUEST"
+        subscribeDiscoverySession?.sendMessage(peerHandle, messageId, message.toByteArray())
+
+        // TODO: wait until the publisher requests the network?
+        requestNetwork(subscribeDiscoverySession!!, peerHandle, 0)
     }
 
     override fun disconnectFromEndpoint(endpointId: String) {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+        connectivityManager.unregisterNetworkCallback(networkCallback)
     }
 
     override fun broadcastMessage(message: String) {
@@ -149,6 +209,7 @@ class WifiAwareConnectivityManager(
     override fun stop() {
         wifiAwareSession?.close()
     }
+
 
     companion object : SingletonHolder<WifiAwareConnectivityManager, Context>(::WifiAwareConnectivityManager) {
         private const val SERVICE_NAME = "meshnet"
