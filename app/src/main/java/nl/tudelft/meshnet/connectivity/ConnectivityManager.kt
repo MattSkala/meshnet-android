@@ -145,6 +145,7 @@ abstract class ConnectivityManager(
                 "BleConnectivityManager" -> BleConnectivityManager.getInstance(context)
                 "BleGattConnectivityManager" -> BleGattConnectivityManager.getInstance(context)
                 "WifiAwareConnectivityManager" -> WifiAwareConnectivityManager.getInstance(context)
+                "WifiDirectConnectivityManager" -> WifiDirectConnectivityManager.getInstance(context)
                 else -> NearbyConnectivityManager.getInstance(context)
             }
         }
