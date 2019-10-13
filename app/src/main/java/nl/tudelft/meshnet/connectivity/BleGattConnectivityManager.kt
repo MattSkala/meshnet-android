@@ -45,10 +45,10 @@ class BleGattConnectivityManager(
             addEndpoint(Endpoint(device.address, device.name, state))
         }
 
-        override fun onDescriptorWriteRequest(
+        override fun onCharacteristicWriteRequest(
             device: BluetoothDevice,
             requestId: Int,
-            descriptor: BluetoothGattDescriptor?,
+            characteristic: BluetoothGattCharacteristic?,
             preparedWrite: Boolean,
             responseNeeded: Boolean,
             offset: Int,
@@ -56,13 +56,10 @@ class BleGattConnectivityManager(
         ) {
             if (value != null) {
                 val text = value.toString(Charsets.UTF_8)
-                Log.d(TAG, "onDescriptorWriteRequest " + device.address + " " + text)
+                Log.d(TAG, "onCharacteristicWriteRequest " + device.address + " " + text)
                 addMessage(Message(text, Date(), device.address))
 
                 gattServer?.sendResponse(device, requestId, 0, offset, value)
-
-                // send characteristic notification
-                gattServer?.notifyCharacteristicChanged(device, messagesCharacteristic, false)
             }
         }
 
@@ -92,6 +89,15 @@ class BleGattConnectivityManager(
 
         override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
             Log.d(TAG, "onServicesDiscovered $status")
+
+            val service = gatt.getService(SERVICE_UUID)
+            if (service != null) {
+                Log.d(TAG, "enabling notifications")
+                val characteristic = service.getCharacteristic(MESSAGES_UUID)
+                gatt.setCharacteristicNotification(characteristic, true)
+            } else {
+                Log.e(TAG, "service is null")
+            }
         }
 
         override fun onCharacteristicRead(
@@ -103,11 +109,12 @@ class BleGattConnectivityManager(
         }
 
         override fun onCharacteristicChanged(
-            gatt: BluetoothGatt?,
-            characteristic: BluetoothGattCharacteristic?
+            gatt: BluetoothGatt,
+            characteristic: BluetoothGattCharacteristic
         ) {
             Log.d(TAG, "onCharacteristicChanged")
-            // TODO: update messages
+            val text = characteristic.value.toString(Charsets.UTF_8)
+            addMessage(Message(text, Date(), gatt.device.address))
         }
     }
 
@@ -229,13 +236,9 @@ class BleGattConnectivityManager(
         val service = BluetoothGattService(SERVICE_UUID, BluetoothGattService.SERVICE_TYPE_PRIMARY)
 
         val messages = BluetoothGattCharacteristic(MESSAGES_UUID,
-            BluetoothGattCharacteristic.PROPERTY_READ or BluetoothGattCharacteristic.PROPERTY_NOTIFY,
-            BluetoothGattCharacteristic.PERMISSION_READ)
+            BluetoothGattCharacteristic.PROPERTY_READ or BluetoothGattCharacteristic.PROPERTY_NOTIFY or BluetoothGattCharacteristic.PROPERTY_WRITE,
+            BluetoothGattCharacteristic.PERMISSION_READ or BluetoothGattCharacteristic.PERMISSION_WRITE)
         messagesCharacteristic = messages
-
-        val sendMessage = BluetoothGattDescriptor(SEND_MESSAGE_UUID,
-            BluetoothGattDescriptor.PERMISSION_READ or BluetoothGattDescriptor.PERMISSION_WRITE)
-        messages.addDescriptor(sendMessage)
 
         service.addCharacteristic(messages)
 
@@ -253,6 +256,7 @@ class BleGattConnectivityManager(
 
         val remoteDevice = bluetoothAdapter.getRemoteDevice(endpointId)
         val gatt = remoteDevice.connectGatt(context, false, gattCallback)
+
         gatts[endpointId] = gatt
     }
 
@@ -268,14 +272,16 @@ class BleGattConnectivityManager(
             Log.d(TAG, "Send message to gatt " + endpoint.endpointId)
             val service = gatt.getService(SERVICE_UUID)
             val characteristic = service.getCharacteristic(MESSAGES_UUID)
-            val descriptor = characteristic.getDescriptor(SEND_MESSAGE_UUID)
-            descriptor.value = message.toByteArray()
-            val success = gatt.writeDescriptor(descriptor)
-            Log.d(TAG, "writeDescriptor " + success)
+            characteristic.value = message.toByteArray()
+            val success = gatt.writeCharacteristic(characteristic)
+            Log.d(TAG, "writeCharacteristic " + success)
         } else if (gattServer != null) {
+            Log.d(TAG, "update message characteristic value")
+            messagesCharacteristic?.value = message.toByteArray()
             for (e in endpoints.value!!) {
                 val device = bluetoothAdapter.getRemoteDevice(e.endpointId)
-                gattServer?.notifyCharacteristicChanged(device, messagesCharacteristic,false)
+                val notified = gattServer?.notifyCharacteristicChanged(device, messagesCharacteristic,false)
+                Log.d(TAG, "notify endpoint " + e.endpointId + " " + notified)
             }
         } else {
             Log.e(TAG, "Gatt not found for $endpoint")
