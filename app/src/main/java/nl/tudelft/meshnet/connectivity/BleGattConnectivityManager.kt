@@ -55,10 +55,7 @@ class BleGattConnectivityManager(
             value: ByteArray?
         ) {
             if (value != null) {
-                val text = value.toString(Charsets.UTF_8)
-                Log.d(TAG, "onCharacteristicWriteRequest " + device.address + " " + text)
-                addMessage(Message(text, Date(), device.address))
-
+                handleMessageReceived(value)
                 gattServer?.sendResponse(device, requestId, 0, offset, value)
             }
         }
@@ -113,8 +110,7 @@ class BleGattConnectivityManager(
             characteristic: BluetoothGattCharacteristic
         ) {
             Log.d(TAG, "onCharacteristicChanged")
-            val text = characteristic.value.toString(Charsets.UTF_8)
-            addMessage(Message(text, Date(), gatt.device.address))
+            handleMessageReceived(characteristic.value)
         }
     }
 

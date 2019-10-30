@@ -326,9 +326,8 @@ class WifiDirectConnectivityManager(
 
                 Log.d(TAG, "Read $numBytes bytes")
 
-                val text = mmBuffer.copyOf(numBytes).toString(Charsets.UTF_8)
-                val sender = socket.inetAddress.toString()
-                addMessage(Message(text, Date(), sender))
+                val body = mmBuffer.copyOf(numBytes)
+                handleMessageReceived(body)
             }
 
             //updateEndpointState(socket.inetAddress.toString(), EndpointState.DISCOVERED)

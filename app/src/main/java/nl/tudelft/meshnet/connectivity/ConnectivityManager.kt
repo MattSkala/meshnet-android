@@ -110,12 +110,15 @@ abstract class ConnectivityManager(
     /**
      * Broadcasts a message to all connected endpoints.
      */
-    fun sendMessage(message: String) {
-        Log.d(TAG, "sendMessage $message to ${_endpoints.size} endpoints")
+    fun sendMessage(text: String) {
+        Log.d(TAG, "sendMessage $text to ${_endpoints.size} endpoints")
 
-        addMessage(Message(message, Date(), username))
+        val id = UUID.randomUUID().toString()
+        val message = Message(id, text, Date(), username)
 
-        broadcastMessage(message)
+        addMessage(message)
+
+        broadcastMessage(message.serialize())
     }
 
     open fun broadcastMessage(message: String) {
@@ -128,9 +131,22 @@ abstract class ConnectivityManager(
 
     abstract fun sendMessage(endpoint: Endpoint, message: String)
 
+    protected fun handleMessageReceived(bytes: ByteArray) {
+        val message = Message.deserialize(bytes)
+        if (message != null) {
+            addMessage(message)
+        } else {
+            Log.e(TAG, "Message deserialization failed")
+        }
+    }
+
     protected fun addMessage(message: Message) {
-        _messages.add(message)
-        messages.postValue(_messages)
+        val existingMessage = _messages.find { it.id == message.id }
+        // Only accept message if not received yet
+        if (existingMessage == null) {
+            _messages.add(message)
+            messages.postValue(_messages)
+        }
     }
 
     companion object {

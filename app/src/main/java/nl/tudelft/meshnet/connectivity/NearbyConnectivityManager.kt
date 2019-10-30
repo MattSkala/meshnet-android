@@ -40,12 +40,9 @@ class NearbyConnectivityManager(
             Log.d(TAG, "onPayloadReceived $endpointId $payload")
 
             if (payload.type == Payload.Type.BYTES) {
-                val message = payload.asBytes()?.toString(Charsets.UTF_8)
-                Log.d(TAG, "onPayloadReceived: $message")
-
-                if (message != null) {
-                    val name = findEndpoint(endpointId)?.endpointName ?: endpointId
-                    addMessage(Message(message, Date(), name))
+                val body = payload.asBytes()
+                if (body != null) {
+                    handleMessageReceived(body)
                 }
             }
         }

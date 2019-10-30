@@ -197,9 +197,8 @@ abstract class BaseBluetoothConnectivityManager(
 
                 Log.d(TAG, "Read $numBytes bytes")
 
-                val text = mmBuffer.copyOf(numBytes).toString(Charsets.UTF_8)
-                val sender = mmSocket.remoteDevice.name ?: mmSocket.remoteDevice.address
-                addMessage(Message(text, Date(), sender))
+                val body = mmBuffer.copyOf(numBytes)
+                handleMessageReceived(body)
             }
 
             updateEndpointState(mmSocket.remoteDevice.address, EndpointState.DISCOVERED)

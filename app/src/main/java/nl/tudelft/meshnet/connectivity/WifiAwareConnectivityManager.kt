@@ -152,7 +152,7 @@ class WifiAwareConnectivityManager(
                     requestNetwork(publishDiscoverySession!!, peerHandle, 1234)
                 }
 
-                addMessage(Message(message.toString(Charsets.UTF_8), Date(), peerHandle.toString()))
+                handleMessageReceived(message)
             }
 
             override fun onServiceDiscovered(
@@ -247,7 +247,7 @@ class WifiAwareConnectivityManager(
             override fun onMessageReceived(peerHandle: PeerHandle, message: ByteArray) {
                 Log.d(TAG, "onMessageReceived: " + peerHandle.toString() + " " + message)
 
-                addMessage(Message(message.toString(Charsets.UTF_8), Date(), peerHandle.toString()))
+                handleMessageReceived(message)
             }
         }, null)
     }
@@ -407,9 +407,8 @@ class WifiAwareConnectivityManager(
 
                 Log.d(TAG, "Read $numBytes bytes")
 
-                val text = mmBuffer.copyOf(numBytes).toString(Charsets.UTF_8)
-                val sender = mmSocket.inetAddress.toString()
-                addMessage(Message(text, Date(), sender))
+                val body = mmBuffer.copyOf(numBytes)
+                handleMessageReceived(body)
             }
 
             val endpointId = mmSocket.inetAddress.toString()
