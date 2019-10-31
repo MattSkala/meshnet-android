@@ -147,6 +147,10 @@ abstract class ConnectivityManager(
         if (existingMessage == null) {
             _messages.add(message)
             messages.postValue(_messages)
+
+            // flood the message to all connected devices
+            // TODO: do not send back to the sender
+            broadcastMessage(message.serialize())
         }
     }
 
