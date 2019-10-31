@@ -132,6 +132,7 @@ abstract class ConnectivityManager(
     abstract fun sendMessage(endpoint: Endpoint, message: String)
 
     protected fun handleMessageReceived(bytes: ByteArray) {
+        Log.d(TAG, "handleMessageReceived: " + bytes.toString(Charsets.UTF_8))
         val message = Message.deserialize(bytes)
         if (message != null) {
             addMessage(message)

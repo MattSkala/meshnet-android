@@ -31,7 +31,7 @@ class NearbyConnectivityManager(
             // A previously discovered endpoint has gone away.
             Log.d(TAG, "onEndpointLost $endpointId")
 
-            removeEndpoint(endpointId)
+            //removeEndpoint(endpointId)
         }
     }
 
